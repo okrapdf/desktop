@@ -111,7 +111,10 @@ jobs:
             -s scripts/tests \
             -p '*_tests.py'
           swift test
-          ./scripts/build-dmg.sh "${{ steps.release.outputs.version }}" "${{ steps.release.outputs.build_number }}"
+          ./scripts/build-dmg.sh \
+            "${{ steps.release.outputs.version }}" \
+            "${{ steps.release.outputs.build_number }}" \
+            --app-only
           codesign --verify --strict --deep "build/Okra.app"
           codesign --display --verbose=4 "build/Okra.app" 2>&1 | grep -E 'Authority=Developer ID Application|TeamIdentifier=|Runtime Version='
           [[ "$(lipo -archs build/Okra.app/Contents/MacOS/Okra)" == "arm64" ]]
@@ -156,13 +159,7 @@ jobs:
           set -euo pipefail
           VERSION="${{ steps.release.outputs.version }}"
           DMG="build/Okra-${VERSION}.dmg"
-          rm -f "${DMG}"
-          hdiutil create \
-            -volname "Okra" \
-            -srcfolder "build/Okra.app" \
-            -ov \
-            -format UDZO \
-            "${DMG}"
+          ./scripts/package-dmg.sh "build/Okra.app" "${DMG}"
           codesign --force --timestamp --sign "${APPLE_SIGNING_IDENTITY}" "${DMG}"
           xcrun notarytool submit "${DMG}" \
             --apple-id "${APPLE_ID}" \

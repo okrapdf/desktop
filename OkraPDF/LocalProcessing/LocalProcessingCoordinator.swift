@@ -75,6 +75,10 @@ final class LocalProcessingCoordinator: ObservableObject {
 
     private static let providerDefaultsKey = "localProcessing.selectedProvider"
     private static let ollamaModelDefaultsKey = "localProcessing.ollama.selectedModel"
+
+    static func modelLicenseAcceptanceKey(for providerID: LocalProviderID) -> String {
+        "localProcessing.modelLicenseAcceptance.\(providerID.rawValue)"
+    }
     private let providers: [any LocalProcessingProvider]
     private let ollamaClient: OllamaClient
     private let ollamaIntegration: OllamaIntegrationState
@@ -101,7 +105,8 @@ final class LocalProcessingCoordinator: ObservableObject {
             SystemMemorySampler.sample()
         },
         stallThreshold: TimeInterval = 90,
-        healthPollInterval: TimeInterval = 5
+        healthPollInterval: TimeInterval = 5,
+        hostProfile: LocalParserHostProfile = .current()
     ) {
         self.runsRoot = runsRoot
         self.userDefaults = userDefaults
@@ -110,28 +115,40 @@ final class LocalProcessingCoordinator: ObservableObject {
         selectedOllamaModelName = storedOllamaModel
         let ollamaIntegration = OllamaIntegrationState(selectedModelName: storedOllamaModel)
         self.ollamaIntegration = ollamaIntegration
+        let resolvedProviders: [any LocalProcessingProvider]
         if let providers {
-            self.providers = providers
+            resolvedProviders = providers
         } else {
             let ollamaProvider = OllamaProcessingProvider(
                 client: ollamaClient,
                 integration: ollamaIntegration
             )
-            self.providers = [
+            resolvedProviders = [
                 AppleVisionProcessingProvider(),
                 HybridAutoProcessingProvider(ollama: ollamaProvider),
+                DotsOCRProcessingProvider(hostProfile: hostProfile),
                 UnlimitedOCRProcessingProvider(),
                 ollamaProvider,
             ]
         }
+        self.providers = resolvedProviders
         self.memorySampler = memorySampler
         self.stallThreshold = stallThreshold
         self.healthPollInterval = healthPollInterval
 
-        if let stored = userDefaults.string(forKey: Self.providerDefaultsKey),
+        let dotsCanBeDefault = resolvedProviders.first(where: {
+            $0.descriptor.id == .dotsOCR
+        }).map { provider in
+            if case .unavailable = provider.availability() { return false }
+            return true
+        } ?? false
+        let storedProvider = userDefaults.string(forKey: Self.providerDefaultsKey)
+        if let stored = storedProvider,
            let providerID = LocalProviderID.persisted(rawValue: stored),
            self.providers.contains(where: { $0.descriptor.id == providerID }) {
             selectedProviderID = providerID
+        } else if dotsCanBeDefault {
+            selectedProviderID = .dotsOCR
         } else if self.providers.contains(where: { $0.descriptor.id == .appleVision }) {
             selectedProviderID = .appleVision
         } else if let firstProvider = self.providers.first {
@@ -310,6 +327,13 @@ final class LocalProcessingCoordinator: ObservableObject {
 
     func installSelectedProvider() {
         guard !isInstalling, let provider = provider(for: selectedProviderID) else { return }
+        if let package = provider.descriptor.parserDefinition?.modelDelivery.pinnedPackage,
+           let licenseRevision = package.licenseRevision {
+            userDefaults.set(
+                licenseRevision,
+                forKey: Self.modelLicenseAcceptanceKey(for: provider.descriptor.id)
+            )
+        }
         isInstalling = true
         progress = 0
         setupErrorMessage = nil

@@ -11,15 +11,29 @@ SURFACE_PATHS=(
   OkraPDF/LocalProcessing
 )
 
-if rg -n '"okraPDF' "${SURFACE_PATHS[@]}" \
-  --glob '*.swift' \
-  --glob '!LocalProviderPaths.swift' \
-  --glob '!BundledResourceLocator.swift'; then
+SWIFT_SURFACE_FILES=()
+while IFS= read -r -d '' path; do
+  SWIFT_SURFACE_FILES+=("${path}")
+done < <(
+  find "${SURFACE_PATHS[@]}" \
+    -type f \
+    -name '*.swift' \
+    ! -name 'LocalProviderPaths.swift' \
+    ! -name 'BundledResourceLocator.swift' \
+    -print0
+)
+
+if (( ${#SWIFT_SURFACE_FILES[@]} == 0 )); then
+  echo "The desktop brand surface has no Swift files to verify." >&2
+  exit 1
+fi
+
+if grep -n '"okraPDF' "${SWIFT_SURFACE_FILES[@]}"; then
   echo "Visible desktop copy must not render the okraPDF wordmark." >&2
   exit 1
 fi
 
-if ! rg -q 'BrandMarkView\(' OkraPDF/Workspace/WorkspaceToolbarContent.swift; then
+if ! grep -q 'BrandMarkView(' OkraPDF/Workspace/WorkspaceToolbarContent.swift; then
   echo "The workspace toolbar must render the canonical mark." >&2
   exit 1
 fi

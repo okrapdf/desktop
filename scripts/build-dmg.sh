@@ -8,6 +8,11 @@ VERSION="${1:-0.1.0}"
 # (sparkle:version). Default: UTC timestamp to the minute; release automation
 # passes the same value it records in appcast.xml.
 BUILD_NUMBER="${2:-$(date -u +%Y%m%d%H%M)}"
+PACKAGE_MODE="${3:-}"
+if [[ -n "${PACKAGE_MODE}" && "${PACKAGE_MODE}" != "--app-only" ]]; then
+  echo "usage: $0 [version] [build-number] [--app-only]" >&2
+  exit 64
+fi
 APP_NAME="Okra"
 SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
 APP_DIR="build/${APP_NAME}.app/Contents"
@@ -150,12 +155,19 @@ else
   codesign --force --sign - --entitlements okraPDF.entitlements "build/${APP_NAME}.app"
 fi
 
-DMG_NAME="${APP_NAME}-${VERSION}.dmg"
-rm -f "build/${DMG_NAME}"
-hdiutil create -volname "${APP_NAME}" -srcfolder "build/${APP_NAME}.app" -ov -format UDZO "build/${DMG_NAME}" 2>&1
-
 APP_SIZE=$(du -sh "build/${APP_NAME}.app" | cut -f1)
-DMG_SIZE=$(du -sh "build/${DMG_NAME}" | cut -f1)
+if [[ "${PACKAGE_MODE}" == "--app-only" ]]; then
+  echo ""
+  echo "${APP_NAME} v${VERSION}"
+  echo "  .app: ${APP_SIZE} (build/${APP_NAME}.app)"
+  exit 0
+fi
+
+DMG_NAME="${APP_NAME}-${VERSION}.dmg"
+DMG="build/${DMG_NAME}"
+./scripts/package-dmg.sh "build/Okra.app" "${DMG}"
+
+DMG_SIZE=$(du -sh "${DMG}" | cut -f1)
 echo ""
 echo "${APP_NAME} v${VERSION}"
 echo "  .app: ${APP_SIZE} (build/${APP_NAME}.app)"

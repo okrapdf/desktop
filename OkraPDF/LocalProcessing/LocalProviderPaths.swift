@@ -22,6 +22,25 @@ enum LocalProviderPaths {
             .appendingPathComponent("providers", isDirectory: true)
     }
 
+    static var dotsOCRRoot: URL {
+        providersRoot.appendingPathComponent("dots-ocr", isDirectory: true)
+    }
+
+    static var dotsOCRPython: URL {
+        dotsOCRRoot
+            .appendingPathComponent("venv", isDirectory: true)
+            .appendingPathComponent("bin", isDirectory: true)
+            .appendingPathComponent("python")
+    }
+
+    static var dotsOCRModel: URL {
+        dotsOCRRoot.appendingPathComponent("model", isDirectory: true)
+    }
+
+    static var dotsOCRReadyMarker: URL {
+        dotsOCRRoot.appendingPathComponent(".ready")
+    }
+
     static var unlimitedOCRRoot: URL {
         providersRoot.appendingPathComponent("unlimited-ocr", isDirectory: true)
     }

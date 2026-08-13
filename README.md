@@ -11,9 +11,14 @@
   into structured local output. No account, document library, or cloud upload.
 </p>
 
-RC.4 introduces a document-first workspace: the native reader stays mounted in
-the center while compact rails and collapsible local Workspace and Extract
-panels keep context close without permanently narrowing the PDF.
+> **Source of truth:** desktop code is maintained at `apps/desktop` in the Okra
+> monorepo. [`okra-project/desktop`](https://github.com/okra-project/desktop)
+> is the generated public CI, release, signing, and Sparkle-update projection.
+
+RC.5 candidate source adds Dots OCR 1.5 as the managed default on eligible Macs
+inside the document-first workspace. The signed RC.4 download remains the
+current public artifact until RC.5 completes signing and notarization; RC.4
+does not include the Dots default.
 
 <p align="center">
   <a href="https://github.com/okra-project/desktop/releases/tag/desktop-v1.0.0-rc.4">
@@ -43,8 +48,8 @@ The selected local parser then produces reviewable output beside a persistent
 per-page run history on this Mac.
 
 - Read text, charts, forms, and scanned pages in a native document-first workspace.
-- Parse with built-in Apple Vision, an installed Ollama vision model, or the
-  optional Baidu Unlimited-OCR setup.
+- Parse with the managed Dots OCR 1.5 default, built-in Apple Vision, optional
+  Baidu Unlimited-OCR, or an installed Ollama vision model.
 - Inspect extracted blocks against their source boxes without modifying the PDF.
 - Preview, copy, save, or reveal Markdown and JSON output.
 - Cancel and resume long runs without throwing away completed pages.
@@ -74,28 +79,38 @@ per-page run history on this Mac.
    it into an app-owned document library.
 2. **Parsing is explicit.** Reading or replacing a document does not create a
    run; extraction starts only when you click **Parse**.
-3. **Processing stays local.** Apple Vision and Baidu extraction run on the
-   Mac. Ollama uses only its loopback service on this Mac.
+3. **Processing stays local.** Apple Vision, Dots OCR, and Baidu extraction run
+   on the Mac. Ollama uses only its loopback service on this Mac.
 4. **Artifacts stay inspectable.** Run state, page checkpoints, Markdown, and
    JSON live under `~/Library/Application Support/Okra/Runs/`.
 
-Baidu Unlimited-OCR may download its pinned model once during setup. The app
-verifies every model artifact with SHA-256 and forces extraction offline after
-setup. Ollama remains responsible for installing and storing Ollama models.
+Dots OCR 1.5 is selected by default on an eligible clean install but never
+downloads or parses automatically. Hardware eligibility requires Apple silicon,
+macOS 14+, at least 16 GB unified memory, and at least 5 GB free disk; an
+ineligible Mac falls back to Apple Vision. Completing setup also requires
+Python 3.10+. The explicit setup downloads about 3.54 GB, shows the upstream
+model terms, and verifies every pinned model artifact with SHA-256. Baidu
+Unlimited-OCR remains selectable as an optional legacy parser with its separate
+pinned setup. A stored Baidu selection stays on Baidu, and an interrupted Baidu
+run resumes only with Baidu. Managed extraction is forced offline after setup.
+Apple Vision remains available with no setup, and Ollama remains responsible
+for installing and storing Ollama models.
 
 ## Local parsers
 
 | Parser | Setup | Best fit |
 | --- | --- | --- |
+| **Dots OCR 1.5** (dots.mocr) | Eligible-Mac default; explicit pinned 4-bit MLX setup, about 3.54 GB | Structured OCR, reading order, tables, formulas, and source boxes on Apple silicon with macOS 14+, Python 3.10+, and 16 GB+ memory |
 | **Apple Vision** | None; built into macOS | Zero-setup text and scanned PDFs |
+| **Baidu Unlimited-OCR** | Optional legacy pinned 4-bit MLX setup, about 2.4 GB | Existing Baidu workflows, checkpoints, and layout extraction on Apple silicon |
 | **Auto (Hybrid)** | Start Ollama and choose an installed vision model | Mixed PDFs; native text with page-level vision fallback |
 | **Ollama** | Start Ollama and choose an installed vision model | Bring your own local vision model |
-| **Baidu Unlimited-OCR** | Optional pinned 4-bit MLX model, about 2.4 GB | Experimental OCR and layout extraction on Apple silicon |
 
 ## Download
 
-`desktop-v1.0.0-rc.4` is the current public release candidate for Apple-silicon
-Macs running macOS 13 or later.
+`desktop-v1.0.0-rc.4` is the current signed public release candidate for
+Apple-silicon Macs running macOS 13 or later. RC.5 is the active source train
+and will replace this download only after its release workflow succeeds.
 
 1. Download `Okra-1.0.0-rc.4.dmg` from the
    [v1.0.0-rc.4 release](https://github.com/okra-project/desktop/releases/tag/desktop-v1.0.0-rc.4).
@@ -152,7 +167,9 @@ docs/releases/ Versioned user-facing release notes
 Maintainers should start with [CLAUDE.md](CLAUDE.md),
 [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md), and
 [LAUNCH.md](LAUNCH.md). Historical changes are indexed in
-[docs/releases](docs/releases/README.md).
+[docs/releases](docs/releases/README.md). Repository projection and source
+ownership are documented in the monorepo at
+`internal/specs/desktop-repository-canonicalization.md`.
 
 ## License
 

@@ -104,6 +104,7 @@ struct PackagedAppLaunchTests {
             )
         }
 
+        try verifyDMGPresentation(at: mountURL)
         let appURL = mountURL.appendingPathComponent("Okra.app", isDirectory: true)
         try verifyBundleLayout(at: appURL)
         let resourceIsolation = try ResourceFallbackIsolation.fromEnvironment()
@@ -158,9 +159,43 @@ struct PackagedAppLaunchTests {
 
         try #require(fileManager.isExecutableFile(atPath: executableURL.path))
         try #require(fileManager.fileExists(atPath: providerScriptsURL.path))
+        try #require(
+            fileManager.fileExists(
+                atPath: providerScriptsURL.appendingPathComponent("dots-ocr-worker.py").path
+            )
+        )
+        try #require(
+            fileManager.fileExists(
+                atPath: providerScriptsURL.appendingPathComponent("install-dots-ocr.sh").path
+            )
+        )
         try #require(fileManager.fileExists(atPath: brandMarkURL.path))
         #expect(bundle.bundleIdentifier == "com.okrapdf.desktop")
         #expect(bundle.object(forInfoDictionaryKey: "LSUIElement") == nil)
+    }
+
+    private func verifyDMGPresentation(at mountURL: URL) throws {
+        let fileManager = FileManager.default
+        let applicationsURL = mountURL.appendingPathComponent("Applications")
+        let applicationsAttributes = try fileManager.attributesOfItem(
+            atPath: applicationsURL.path
+        )
+        let applicationsType = applicationsAttributes[.type] as? FileAttributeType
+        let applicationsDestination = try fileManager.destinationOfSymbolicLink(
+            atPath: applicationsURL.path
+        )
+
+        #expect(applicationsType == .typeSymbolicLink)
+        #expect(applicationsDestination == "/Applications")
+        let finderMetadataURL = mountURL.appendingPathComponent(".DS_Store")
+        let finderMetadataAttributes = try fileManager.attributesOfItem(
+            atPath: finderMetadataURL.path
+        )
+        let finderMetadataSize = finderMetadataAttributes[.size] as? NSNumber
+        #expect(
+            (finderMetadataSize?.intValue ?? 0) > 0,
+            "The DMG should preserve its Finder window and icon layout."
+        )
     }
 
     private func isolatedEnvironment(home: URL) -> [String: String] {

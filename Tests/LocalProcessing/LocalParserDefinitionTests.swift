@@ -9,8 +9,67 @@ struct LocalParserDefinitionTests {
         #expect(LocalParserCatalog.appleVision.outputAdapter == .plainTextV1)
         #expect(LocalParserCatalog.hybridAuto.runtime == .hybrid)
         #expect(LocalParserCatalog.hybridAuto.outputAdapter == .hybridMarkdownV1)
+        #expect(LocalParserCatalog.dotsOCR.runtime == .mlxVLM)
+        #expect(LocalParserCatalog.dotsOCR.outputAdapter == .dotsLayoutJSONV1)
         #expect(LocalParserCatalog.unlimitedOCR.runtime == .mlxVLM)
         #expect(LocalParserCatalog.unlimitedOCR.outputAdapter == .unlimitedOCRTokensV1)
+    }
+
+    @Test("Dots OCR keeps pinned model lineage, terms, and artifacts")
+    func dotsOCRLineage() throws {
+        let package = try #require(LocalParserCatalog.dotsOCR.modelDelivery.pinnedPackage)
+
+        #expect(package.upstreamRepository == "dots-studio/dots.mocr")
+        #expect(package.repository == "mlx-community/dots.mocr-4bit")
+        #expect(package.revision == "708b576de556b0cdba615ecd211db3b951ec09ef")
+        #expect(package.format == .mlxSafetensors)
+        #expect(package.quantization == LocalModelQuantization(bits: 4, scheme: "affine-int4-group-64"))
+        #expect(package.parameterCount == 3_000_000_000)
+        #expect(package.licenseSPDXIdentifier == "LicenseRef-dots-mocr")
+        #expect(package.licenseURL?.absoluteString.contains("dots.mocr%20LICENSE%20AGREEMENT") == true)
+        #expect(package.licenseRevision == "e539fbb52280393adc081b289ec597430a0f9031")
+        #expect(package.licenseNotice?.contains("acceptable-use") == true)
+        #expect(package.artifacts == DotsOCRModelManifest.artifacts)
+        #expect(package.totalBytes == 3_538_447_417)
+    }
+
+    @Test("Dots OCR artifacts retain revision-scoped download URLs")
+    func dotsOCRArtifactDownloadURL() throws {
+        let package = try #require(LocalParserCatalog.dotsOCR.modelDelivery.pinnedPackage)
+        let artifact = try #require(package.artifacts.first { $0.path == "model.safetensors" })
+        let url = try #require(package.downloadURL(for: artifact))
+
+        #expect(
+            url.absoluteString
+                == "https://huggingface.co/mlx-community/dots.mocr-4bit/resolve/708b576de556b0cdba615ecd211db3b951ec09ef/model.safetensors?download=true"
+        )
+    }
+
+    @Test("Dots OCR supports a macOS 14, 16 GB Apple-silicon Mac with setup space")
+    func dotsOCRBaselineMacCompatibility() {
+        let host = LocalParserHostProfile(
+            architecture: .appleSilicon,
+            macOSMajorVersion: 14,
+            unifiedMemoryGB: 16,
+            availableDiskBytes: 5_000_000_000
+        )
+
+        #expect(LocalParserCatalog.dotsOCR.requirements.compatibility(with: host) == .supported)
+    }
+
+    @Test("Dots OCR reports its macOS 14 runtime floor")
+    func dotsOCRRejectsMacOS13Runtime() {
+        let host = LocalParserHostProfile(
+            architecture: .appleSilicon,
+            macOSMajorVersion: 13,
+            unifiedMemoryGB: 16,
+            availableDiskBytes: 5_000_000_000
+        )
+
+        #expect(
+            LocalParserCatalog.dotsOCR.requirements.compatibility(with: host)
+                == .unsupported([.macOS(minimumMajorVersion: 14)])
+        )
     }
 
     @Test("Unlimited OCR keeps pinned model lineage and artifacts")
@@ -76,6 +135,7 @@ struct LocalParserDefinitionTests {
         let definitions = [
             LocalParserCatalog.appleVision,
             LocalParserCatalog.hybridAuto,
+            LocalParserCatalog.dotsOCR,
             LocalParserCatalog.unlimitedOCR,
         ]
         let data = try JSONEncoder().encode(definitions)
@@ -86,8 +146,8 @@ struct LocalParserDefinitionTests {
 
     @Test("Provider setup size comes from its pinned package")
     func providerDownloadSize() {
-        let descriptor = UnlimitedOCRProcessingProvider().descriptor
+        let descriptor = DotsOCRProcessingProvider().descriptor
 
-        #expect(descriptor.downloadSizeBytes == UnlimitedOCRModelManifest.totalBytes)
+        #expect(descriptor.downloadSizeBytes == DotsOCRModelManifest.totalBytes)
     }
 }

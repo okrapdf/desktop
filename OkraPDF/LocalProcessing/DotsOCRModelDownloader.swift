@@ -1,6 +1,6 @@
 import Foundation
 
-struct UnlimitedOCRModelDownloader: UnlimitedOCRModelDownloading {
+struct DotsOCRModelDownloader: DotsOCRModelDownloading {
     func downloadModel(
         to modelURL: URL,
         progress: @escaping @Sendable (LocalProviderSetupProgress) -> Void
@@ -13,7 +13,7 @@ struct UnlimitedOCRModelDownloader: UnlimitedOCRModelDownloading {
         try fileManager.createDirectory(at: resumeRoot, withIntermediateDirectories: true)
 
         var completedBytes = Int64(0)
-        for artifact in UnlimitedOCRModelManifest.artifacts {
+        for artifact in DotsOCRModelManifest.artifacts {
             try Task.checkCancellation()
             let destinationURL = stagingURL.appendingPathComponent(artifact.path)
             if fileSize(at: destinationURL) == artifact.size {
@@ -35,12 +35,12 @@ struct UnlimitedOCRModelDownloader: UnlimitedOCRModelDownloading {
         }
 
         var verifiedBytes = Int64(0)
-        for artifact in UnlimitedOCRModelManifest.artifacts {
+        for artifact in DotsOCRModelManifest.artifacts {
             try Task.checkCancellation()
             let artifactURL = stagingURL.appendingPathComponent(artifact.path)
             guard fileSize(at: artifactURL) == artifact.size else {
                 throw LocalProcessingError.modelIntegrityFailed(
-                    provider: "Baidu Unlimited-OCR",
+                    provider: "Dots OCR 1.5",
                     artifact: artifact.path
                 )
             }
@@ -50,19 +50,19 @@ struct UnlimitedOCRModelDownloader: UnlimitedOCRModelDownloading {
                 expectedBytes: artifact.size
             ) { bytesRead in
                 let fraction = Double(verifiedBeforeArtifact + bytesRead)
-                    / Double(UnlimitedOCRModelManifest.totalBytes)
+                    / Double(DotsOCRModelManifest.totalBytes)
                 progress(
                     LocalProviderSetupProgress(
                         phase: .verifying,
                         fraction: fraction,
-                        message: "Verifying Baidu Unlimited-OCR…"
+                        message: "Verifying Dots OCR 1.5…"
                     )
                 )
             }
             guard digest == artifact.sha256 else {
                 try? fileManager.removeItem(at: artifactURL)
                 throw LocalProcessingError.modelIntegrityFailed(
-                    provider: "Baidu Unlimited-OCR",
+                    provider: "Dots OCR 1.5",
                     artifact: artifact.path
                 )
             }
@@ -77,13 +77,13 @@ struct UnlimitedOCRModelDownloader: UnlimitedOCRModelDownloading {
     }
 
     private func download(
-        _ artifact: UnlimitedOCRModelArtifact,
+        _ artifact: LocalModelArtifact,
         to destinationURL: URL,
         resumeDataURL: URL,
         completedBytes: Int64,
         progress: @escaping @Sendable (LocalProviderSetupProgress) -> Void
     ) async throws {
-        guard let downloadURL = UnlimitedOCRModelManifest.downloadURL(for: artifact) else {
+        guard let downloadURL = DotsOCRModelManifest.downloadURL(for: artifact) else {
             throw LocalProcessingError.invalidModelDownloadURL(artifact.path)
         }
 
@@ -96,12 +96,12 @@ struct UnlimitedOCRModelDownloader: UnlimitedOCRModelDownloading {
                     expectedBytes: artifact.size,
                     progress: { bytesWritten in
                         let fraction = Double(completedBytes + bytesWritten)
-                            / Double(UnlimitedOCRModelManifest.totalBytes)
+                            / Double(DotsOCRModelManifest.totalBytes)
                         progress(
                             LocalProviderSetupProgress(
                                 phase: .downloadingModel,
                                 fraction: fraction,
-                                message: "Downloading Baidu Unlimited-OCR…"
+                                message: "Downloading Dots OCR 1.5…"
                             )
                         )
                     },
@@ -109,7 +109,11 @@ struct UnlimitedOCRModelDownloader: UnlimitedOCRModelDownloading {
                 )
                 let configuration = URLSessionConfiguration.ephemeral
                 configuration.waitsForConnectivity = true
-                let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
+                let session = URLSession(
+                    configuration: configuration,
+                    delegate: delegate,
+                    delegateQueue: nil
+                )
                 delegate.retain(session: session)
 
                 let task: URLSessionDownloadTask
@@ -136,13 +140,13 @@ struct UnlimitedOCRModelDownloader: UnlimitedOCRModelDownloading {
 
     private func reportDownloadProgress(
         _ completedBytes: Int64,
-        artifact: UnlimitedOCRModelArtifact,
+        artifact: LocalModelArtifact,
         progress: @escaping @Sendable (LocalProviderSetupProgress) -> Void
     ) {
         progress(
             LocalProviderSetupProgress(
                 phase: .downloadingModel,
-                fraction: Double(completedBytes) / Double(UnlimitedOCRModelManifest.totalBytes),
+                fraction: Double(completedBytes) / Double(DotsOCRModelManifest.totalBytes),
                 message: "Resuming after \(artifact.path)…"
             )
         )

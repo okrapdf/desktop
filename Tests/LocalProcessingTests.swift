@@ -14,21 +14,21 @@ struct LocalProcessingProviderTests {
         #expect(provider.availability() == .ready)
     }
 
-    @Test("Unlimited-OCR simulation is clearly reported as simulation")
-    func unlimitedOCRSimulationIsClearlyReportedAsSimulation() {
-        let provider = UnlimitedOCRProcessingProvider(
-            environment: ["OKRA_DESKTOP_SIMULATE_UNLIMITED_OCR": "1"]
+    @Test("Dots OCR simulation is clearly reported as simulation")
+    func dotsOCRSimulationIsClearlyReportedAsSimulation() {
+        let provider = DotsOCRProcessingProvider(
+            environment: ["OKRA_DESKTOP_SIMULATE_DOTS_OCR": "1"]
         )
 
-        #expect(provider.descriptor.name == "Baidu Unlimited-OCR")
+        #expect(provider.descriptor.name == "Dots OCR 1.5")
         #expect(provider.availability() == .simulated("Simulation ready"))
     }
 
-    @Test("Apple Vision remains selected when Baidu simulation is ready")
-    func simulationModeDefaultsToAppleVision() throws {
+    @Test("Dots OCR is selected by default")
+    func simulationModeDefaultsToDotsOCR() throws {
         let workspace = try TestWorkspace(prefix: "okra-simulation-selection")
-        let simulatedProvider = UnlimitedOCRProcessingProvider(
-            environment: ["OKRA_DESKTOP_SIMULATE_UNLIMITED_OCR": "1"]
+        let simulatedProvider = DotsOCRProcessingProvider(
+            environment: ["OKRA_DESKTOP_SIMULATE_DOTS_OCR": "1"]
         )
         let coordinator = LocalProcessingCoordinator(
             providers: [FixtureProcessingProvider(), simulatedProvider],
@@ -36,28 +36,57 @@ struct LocalProcessingProviderTests {
             userDefaults: workspace.defaults
         )
 
-        #expect(coordinator.selectedProviderID == .appleVision)
-        #expect(coordinator.selectedAvailability == .ready)
+        #expect(coordinator.selectedProviderID == .dotsOCR)
+        #expect(coordinator.selectedAvailability == .simulated("Simulation ready"))
     }
 
-    @Test("A stored Baidu provider choice remains selected")
+    @Test("A stored Baidu provider choice remains explicit")
     func storedBaiduProviderRemainsSelected() throws {
         let workspace = try TestWorkspace(prefix: "okra-stored-baidu-selection")
         workspace.defaults.set(
             LocalProviderID.unlimitedOCR.rawValue,
             forKey: "localProcessing.selectedProvider"
         )
-        let simulatedProvider = UnlimitedOCRProcessingProvider(
-            environment: ["OKRA_DESKTOP_SIMULATE_UNLIMITED_OCR": "1"]
+        let simulatedProvider = DotsOCRProcessingProvider(
+            environment: ["OKRA_DESKTOP_SIMULATE_DOTS_OCR": "1"]
         )
         let coordinator = LocalProcessingCoordinator(
-            providers: [FixtureProcessingProvider(), simulatedProvider],
+            providers: [FixtureProcessingProvider(), simulatedProvider, SetupFixtureProvider()],
             runsRoot: workspace.runsRoot,
             userDefaults: workspace.defaults
         )
 
         #expect(coordinator.selectedProviderID == .unlimitedOCR)
-        #expect(coordinator.selectedAvailability == .simulated("Simulation ready"))
+        #expect(coordinator.selectedAvailability == .setupRequired("Setup required"))
+        #expect(
+            workspace.defaults.string(forKey: "localProcessing.selectedProvider")
+                == LocalProviderID.unlimitedOCR.rawValue
+        )
+    }
+
+    @Test("An incompatible Mac falls back from Dots OCR to Apple Vision")
+    func incompatibleMacFallsBackToAppleVision() throws {
+        let workspace = try TestWorkspace(prefix: "okra-incompatible-dots-selection")
+        let incompatibleProvider = DotsOCRProcessingProvider(
+            environment: [:],
+            hostProfile: LocalParserHostProfile(
+                architecture: .intel,
+                macOSMajorVersion: 13,
+                unifiedMemoryGB: 8,
+                availableDiskBytes: 1_000_000_000
+            )
+        )
+        let coordinator = LocalProcessingCoordinator(
+            providers: [FixtureProcessingProvider(), incompatibleProvider],
+            runsRoot: workspace.runsRoot,
+            userDefaults: workspace.defaults
+        )
+
+        #expect(coordinator.selectedProviderID == .appleVision)
+        #expect(
+            coordinator.availabilityByProvider[.dotsOCR]?.message
+                .contains("requires Apple silicon") == true
+        )
     }
 
     @Test("Run directory uses only the run identifier")
@@ -360,12 +389,12 @@ struct LocalProcessingProviderTests {
     }
 
     @Test(
-        "Baidu Unlimited-OCR simulation completes the PDF workflow",
+        "Dots OCR 1.5 simulation completes the PDF workflow",
         .tags(.smoke),
         .timeLimit(.minutes(1))
     )
-    func baiduUnlimitedOCREndToEndSimulationOnPDF() async throws {
-        let workspace = try TestWorkspace(prefix: "okra-baidu-e2e")
+    func dotsOCREndToEndSimulationOnPDF() async throws {
+        let workspace = try TestWorkspace(prefix: "okra-dots-e2e")
         try FileManager.default.createDirectory(at: workspace.root, withIntermediateDirectories: true)
 
         let pdfURL: URL
@@ -381,8 +410,8 @@ struct LocalProcessingProviderTests {
             expectedPageCount = 2
         }
 
-        let provider = UnlimitedOCRProcessingProvider(
-            environment: ["OKRA_DESKTOP_SIMULATE_UNLIMITED_OCR": "1"]
+        let provider = DotsOCRProcessingProvider(
+            environment: ["OKRA_DESKTOP_SIMULATE_DOTS_OCR": "1"]
         )
         let coordinator = LocalProcessingCoordinator(
             providers: [provider],
@@ -399,12 +428,12 @@ struct LocalProcessingProviderTests {
         coordinator.load(document: document)
         #expect(coordinator.selectedAvailability == .simulated("Simulation ready"))
         coordinator.run(document: document)
-        try await waitUntil("simulated Baidu parsing to finish") { coordinator.isRunning == false }
+        try await waitUntil("simulated Dots parsing to finish") { coordinator.isRunning == false }
 
         let run = try #require(coordinator.latestRun)
         #expect(run.status == "succeeded")
-        #expect(run.providerId == "unlimited-ocr")
-        #expect(run.providerName == "Baidu Unlimited-OCR")
+        #expect(run.providerId == "dots-ocr")
+        #expect(run.providerName == "Dots OCR 1.5")
         #expect(run.executionMode == "simulation")
         #expect(run.pageCount == expectedPageCount)
         #expect(coordinator.progress == 1)
@@ -412,11 +441,11 @@ struct LocalProcessingProviderTests {
         #expect(coordinator.totalPageCount == expectedPageCount)
         #expect(coordinator.pageLifecycles.count == expectedPageCount)
         #expect(coordinator.pageLifecycles.allSatisfy { $0.state == .done })
-        #expect(coordinator.pageLifecycles.allSatisfy { $0.parserID == "unlimited-ocr" })
+        #expect(coordinator.pageLifecycles.allSatisfy { $0.parserID == "dots-ocr" })
         #expect(coordinator.statusMessage == "Simulation complete · model weights were not loaded.")
         #expect(
             coordinator.outputText.contains(
-                "Simulation: Baidu Unlimited-OCR model weights were not loaded."
+                "Simulation: Dots OCR 1.5 model weights were not loaded."
             )
         )
         #expect(coordinator.outputText.contains("HF_HUB_OFFLINE=1"))
@@ -424,13 +453,16 @@ struct LocalProcessingProviderTests {
         #expect(coordinator.outputText.contains("HF_DATASETS_OFFLINE=1"))
         #expect(coordinator.outputText.contains("## Page 1"))
         #expect(coordinator.outputText.contains("## Page \(expectedPageCount)"))
-        #expect(coordinator.structuredOutput?.provider.id == "unlimited-ocr")
+        #expect(coordinator.structuredOutput?.provider.id == "dots-ocr")
         #expect(coordinator.structuredOutput?.pageCount == expectedPageCount)
         #expect(coordinator.structuredOutput?.completedPageCount == expectedPageCount)
         #expect(coordinator.structuredOutput?.complete == true)
         #expect(coordinator.structuredOutput?.simulation == true)
-        #expect(coordinator.pdfBoundingBoxOverlays.count == expectedPageCount)
-        #expect(coordinator.pdfBoundingBoxOverlays.map(\.pageNumber) == Array(1...expectedPageCount))
+        #expect(coordinator.pdfBoundingBoxOverlays.count == expectedPageCount * 2)
+        #expect(
+            coordinator.pdfBoundingBoxOverlays.map(\.pageNumber)
+                == (1...expectedPageCount).flatMap { [$0, $0] }
+        )
 
         let firstOverlay = try #require(coordinator.pdfBoundingBoxOverlays.first)
         coordinator.showsPDFBoundingBoxes = false
@@ -495,7 +527,7 @@ struct LocalProcessingProviderTests {
         reopened.load(document: document)
         #expect(reopened.latestRun?.id == run.id)
         #expect(reopened.pageLifecycles.allSatisfy { $0.state == .done })
-        #expect(reopened.pdfBoundingBoxOverlays.count == expectedPageCount)
+        #expect(reopened.pdfBoundingBoxOverlays.count == expectedPageCount * 2)
         #expect(reopened.selectedStructuredBlockID == nil)
     }
 

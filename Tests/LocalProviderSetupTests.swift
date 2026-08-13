@@ -74,6 +74,48 @@ struct LocalProviderSetupTests {
         #expect(Set(UnlimitedOCRModelManifest.artifacts.map(\.path)).count == 8)
     }
 
+    @Test("Dots OCR manifest pins every required runtime artifact")
+    func dotsOCRModelManifest() {
+        #expect(DotsOCRModelManifest.artifacts.count == 15)
+        #expect(DotsOCRModelManifest.totalBytes == 3_538_447_417)
+        #expect(DotsOCRModelManifest.artifacts.allSatisfy { $0.sha256.count == 64 })
+        #expect(Set(DotsOCRModelManifest.artifacts.map(\.path)).count == 15)
+        #expect(
+            DotsOCRModelManifest.artifacts.contains {
+                $0.path == "model.safetensors"
+                    && $0.size == 3_524_130_967
+                    && $0.sha256
+                        == "9310766f72e340f995e43662ccf55f5999e034ef85d9e8624a744574e624d0c5"
+            }
+        )
+    }
+
+    @Test("Dots OCR setup records the accepted model-license revision")
+    func dotsOCRSetupRecordsLicenseAcceptance() async throws {
+        let workspace = try TestWorkspace(prefix: "okra-dots-license")
+        let provider = DotsOCRProcessingProvider(
+            environment: ["OKRA_DESKTOP_SIMULATE_DOTS_OCR": "1"]
+        )
+        let coordinator = LocalProcessingCoordinator(
+            providers: [provider],
+            runsRoot: workspace.runsRoot,
+            userDefaults: workspace.defaults
+        )
+
+        coordinator.installSelectedProvider()
+        try await waitUntil("Dots OCR simulated setup to finish") {
+            coordinator.isInstalling == false
+        }
+
+        #expect(
+            workspace.defaults.string(
+                forKey: LocalProcessingCoordinator.modelLicenseAcceptanceKey(
+                    for: .dotsOCR
+                )
+            ) == DotsOCRModelManifest.package.licenseRevision
+        )
+    }
+
     @Test("Setup progress clamps determinate values", arguments: [-1.0, 0.42, 2.0])
     func progressClamping(input: Double) {
         let progress = LocalProviderSetupProgress(

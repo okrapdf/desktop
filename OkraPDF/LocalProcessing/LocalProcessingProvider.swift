@@ -2,6 +2,7 @@ import Foundation
 
 enum LocalProviderID: String, CaseIterable, Codable, Hashable, Sendable {
     case appleVision = "apple-vision"
+    case dotsOCR = "dots-ocr"
     case hybridAuto = "hybrid-auto"
     case unlimitedOCR = "unlimited-ocr"
     case ollama
@@ -184,7 +185,7 @@ enum LocalProcessingError: LocalizedError {
     case commandFailed(command: String, status: Int32, output: String)
     case missingOutput(String)
     case invalidModelDownloadURL(String)
-    case modelIntegrityFailed(String)
+    case modelIntegrityFailed(provider: String, artifact: String)
 
     var errorDescription: String? {
         switch self {
@@ -208,8 +209,8 @@ enum LocalProcessingError: LocalizedError {
             return "\(provider) finished without producing Markdown."
         case .invalidModelDownloadURL(let artifact):
             return "The download URL for \(artifact) is invalid."
-        case .modelIntegrityFailed(let artifact):
-            return "\(artifact) did not match the pinned Baidu Unlimited-OCR model. Retry setup to download it again."
+        case .modelIntegrityFailed(let provider, let artifact):
+            return "\(artifact) did not match the pinned \(provider) model. Retry setup to download it again."
         }
     }
 }

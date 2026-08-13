@@ -44,12 +44,12 @@ struct ProviderSetupView: View {
 
                 Button(action: coordinator.installSelectedProvider) {
                     Text(coordinator.setupErrorMessage == nil
-                         ? "Set up \(coordinator.selectedDescriptor.name)"
+                         ? setupButtonTitle
                          : "Retry setup")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .accessibilityHint("Downloads this provider once for future offline extraction")
+                .accessibilityHint(setupAccessibilityHint)
             }
         }
         .padding(WorkspaceTheme.standardSpacing)
@@ -60,7 +60,7 @@ struct ProviderSetupView: View {
         VStack(alignment: .leading, spacing: WorkspaceTheme.compactSpacing) {
             Text("One-time local model setup")
                 .font(.headline)
-            Text("Okra downloads and verifies this first-party model on this Mac. After setup, PDF extraction runs locally.")
+            Text("Okra downloads and verifies this pinned model on this Mac. After setup, PDF extraction runs locally.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -76,6 +76,34 @@ struct ProviderSetupView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            if let package = coordinator.selectedDescriptor.parserDefinition?
+                .modelDelivery.pinnedPackage,
+               let licenseURL = package.licenseURL {
+                if let licenseNotice = package.licenseNotice {
+                    Text(licenseNotice)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Link("Read model license and use terms", destination: licenseURL)
+                    .font(.caption)
+            }
         }
+    }
+
+    private var setupButtonTitle: String {
+        if coordinator.selectedDescriptor.parserDefinition?
+            .modelDelivery.pinnedPackage?.licenseNotice != nil {
+            return "Agree & set up \(coordinator.selectedDescriptor.name)"
+        }
+        return "Set up \(coordinator.selectedDescriptor.name)"
+    }
+
+    private var setupAccessibilityHint: String {
+        if coordinator.selectedDescriptor.parserDefinition?
+            .modelDelivery.pinnedPackage?.licenseNotice != nil {
+            return "Accepts the linked model terms and downloads this provider for offline extraction"
+        }
+        return "Downloads this provider once for future offline extraction"
     }
 }

@@ -1,8 +1,8 @@
 # okraPDF Desktop — Release Checklist
 
-Current train: `desktop-v1.0.0-rc.4`
+Current train: `desktop-v1.0.0-rc.5`
 
-Roadmap items: `D.6.3`, `Stable #15`, `D.6.9`, `D.6.13`, `D.6.14`
+Roadmap items: `D.6.3`, `Stable #15`, `D.6.9`, `D.6.13`, `D.6.14`, `D.6.15`
 
 ## Product contract
 
@@ -17,32 +17,38 @@ Roadmap items: `D.6.3`, `Stable #15`, `D.6.9`, `D.6.13`, `D.6.14`
 - [x] PDF drag-and-drop
 - [x] **Open PDF…** picker
 - [x] Explicit Parse action; opening/replacing a PDF creates no run
-- [x] Apple Vision default provider
+- [x] Dots OCR 1.5 selected by default on eligible clean installs; setup and Parse remain explicit
+- [x] Dots host gate requires Apple silicon, macOS 14+, 16 GB+ memory, and setup space; incompatible hosts fall back to Apple Vision, and setup separately requires Python 3.10+
+- [x] Apple Vision remains available without setup
 - [x] Auto (Hybrid) native-text reuse with page-local Ollama vision fallback
 - [x] Generic Ollama provider with HTTP model discovery and vision-capability filtering
 - [x] Ollama model selection persists without inspecting its model directory or invoking its CLI
 - [x] Docling provider removed for beta.20
-- [x] Baidu Unlimited-OCR setup/readiness state and lineage copy
+- [x] Optional Baidu Unlimited-OCR remains selectable with its pinned setup/readiness state and lineage copy
+- [x] Stored Baidu selection remains selected; interrupted Baidu runs resume only through the Baidu provider
 - [x] Native byte-counted Baidu model download with cancel/resume state
 - [x] Pinned Baidu model revision and SHA-256 verification before readiness
 - [x] Truthfully labeled Baidu Unlimited-OCR simulation mode
+- [x] Pinned Dots OCR 1.5 model revision and SHA-256 verification before readiness
+- [x] Dots model terms disclosed before setup
+- [x] Truthfully labeled Dots OCR 1.5 simulation mode
 - [x] Streaming progress and local errors
 - [x] Canonical per-parser page lifecycle (`idle`, `inProgress`, `done`, `attention`, `error`)
 - [x] Lazy page-state strip with parser name, visible text/symbol states, and complete VoiceOver labels
 - [x] Passive stall warning after 90 seconds without progress updates
 - [x] Low-memory warning while a local run is active
-- [x] Cross-instance Baidu Unlimited-OCR run queue with a visible waiting state
+- [x] Cross-instance managed-MLX run queue with a visible waiting state for Dots and Baidu
 - [x] In-app Sparkle auto-update: Check for Updates… downloads, verifies, and relaunches into the newest signed beta
 - [x] Cancel Run action with persisted cancel intent and terminal canceled state
 - [x] Interrupted-run recovery and same-run Resume action
-- [x] Atomic page-level Markdown checkpoints for Apple Vision and Baidu Unlimited-OCR
-- [x] Baidu tokenizer-marker decoding and `<|det|>` layout parsing
+- [x] Atomic page-level Markdown checkpoints for Apple Vision, Dots OCR 1.5, and Baidu Unlimited-OCR
+- [x] Dots layout-array decoding and official Qwen smart-resize box normalization
 - [x] Typed normalized blocks in per-page and aggregate `result.json`
 - [x] Deterministic repeated-tail suppression with diagnostics
-- [x] Preview, Markdown, and JSON output modes for Apple Vision and Baidu runs
-- [x] Source-PDF bounding boxes for valid Baidu normalized layout blocks
+- [x] Preview, Markdown, and JSON output modes for Apple Vision, Dots, and Baidu runs
+- [x] Source-PDF bounding boxes for valid Dots and Baidu normalized layout blocks
 - [x] Apple Vision structured output and source-PDF boxes for native text and scanned OCR observations
-- [x] Provider-neutral source-PDF overlays for Apple Vision and Baidu Unlimited-OCR
+- [x] Provider-neutral source-PDF overlays for Apple Vision, Dots OCR 1.5, and Baidu Unlimited-OCR
 - [x] Two-way source-box and preview-card selection across zoom, scroll, crop, and rotation
 - [x] Two-way source-box and preview-card hover highlighting, including card scroll-into-view
 - [x] Accessible Show boxes toolbar toggle; overlays remain screen-only and never mutate the source PDF
@@ -57,16 +63,18 @@ Roadmap items: `D.6.3`, `Stable #15`, `D.6.9`, `D.6.13`, `D.6.14`
 - [x] Pollable progress snapshots and sequenced lifecycle stream persisted as `run.json` and `events.jsonl`
 - [x] Parser/page lifecycle matrix persisted in `run.json` with legacy-manifest decoding
 - [x] Results stored beside each run manifest as `result.md`
-- [x] Apple Vision and Baidu structured results stored beside each run manifest as `result.json`
+- [x] Apple Vision, Dots, and Baidu structured results stored beside each run manifest as `result.json`
 - [x] Recent local runs re-open from the workspace sidebar
-- [x] Baidu Unlimited-OCR inference forces Hugging Face/Transformers offline mode
+- [x] Dots OCR 1.5 and Baidu Unlimited-OCR inference force Hugging Face/Transformers offline mode
 - [x] Provider setup is visibly distinct from offline extraction
-- [x] Ollama is represented as a loopback HTTP integration, separate from Okra-managed Baidu setup
+- [x] Ollama is represented as a loopback HTTP integration, separate from Okra-managed Dots and Baidu setup
 
 ## Automated verification
 
 - [x] Local-processing tests retained
 - [x] Simulated Baidu Unlimited-OCR PDF → pages → worker → Markdown + JSON → manifest E2E
+- [x] Simulated Dots OCR 1.5 PDF → pages → worker → Markdown + JSON → manifest E2E
+- [x] Dots layout-array parsing, category mapping, malformed-output recovery, table HTML, and pixel-box normalization coverage
 - [x] Mid-run `run.json` progress and 120-page checkpoint persistence coverage
 - [x] Cancel ordering, orphan recovery, checkpoint resume, and child-process termination coverage
 - [x] Lifecycle TDD for transitions, parser isolation, Codable round trips, health attention, cancellation, errors, and completion
@@ -80,6 +88,7 @@ Roadmap items: `D.6.3`, `Stable #15`, `D.6.9`, `D.6.13`, `D.6.14`
 - [x] Document-first default and independent Workspace/Extract toggles have unit coverage
 - [x] Packaged app starts with builder-only SwiftPM resources hidden
 - [x] Quarantined notarized beta.8 through beta.15 DMGs start through LaunchServices before publishing (2026-07-28)
+- [x] DMG packaging stages an Applications shortcut, embeds a checksummed Finder icon layout without GUI automation, and verifies both from the mounted release image
 - [x] Remote-control, dispatch, registry, and model-catalog tests removed
 - [x] Docling provider, tests, and Docling-only bundled resources removed for beta.20
 - [x] `swift build` on an unrestricted macOS shell (2026-07-28)
@@ -87,6 +96,7 @@ Roadmap items: `D.6.3`, `Stable #15`, `D.6.9`, `D.6.13`, `D.6.14`
 - [x] `swift test` on an unrestricted macOS shell (93 tests passed, 2026-07-29)
 - [x] Python output-parser, resume, appcast, and protected-release tests (12/12 passed, 2026-07-29)
 - [x] RC.4 brand gate, 12 Python tests, 101 Swift tests across 20 suites, and release build pass on the candidate tree (2026-08-05)
+- [x] RC.5 brand gate, 26 Python tests, 111 Swift tests across 21 suites, six projection safety tests, and release build pass on the candidate tree (updated 2026-08-12)
 - [x] Local ad-hoc RC.4 package launches and passes empty, loaded-document, light, dark, and 960-point drawer interaction checks (2026-08-05)
 - [x] Packaged-app resource-isolation launch and quarantined local-DMG LaunchServices tests pass against the rebuilt RC.4 package (2/2, 2026-08-05)
 
@@ -153,8 +163,7 @@ a local build.
 ## Broader product regression
 
 These retained checks do not replace the friend-core lines above. Do not mark
-the real-provider checks complete from Baidu simulation, and do not block the
-friend round on real Baidu setup/inference.
+the real-provider checks complete from Dots or Baidu simulation.
 
 - [x] Launch and confirm the reader window and canonical green Dock icon appear (2026-07-27)
 - [ ] Drop a one-page text PDF and confirm no extraction starts
@@ -167,6 +176,7 @@ friend round on real Baidu setup/inference.
 - [x] Run the labeled Baidu Unlimited-OCR simulation on a multi-page PDF (3 pages, 2026-07-27)
 - [ ] Select Baidu boxes from both the PDF and preview on a rotated/cropped dogfood PDF
 - [ ] Set up Baidu Unlimited-OCR on a 16 GB Apple-silicon Mac and extract offline
+- [ ] Set up the pinned Dots OCR 1.5 model on a clean 16 GB Apple-silicon Mac and record peak memory plus multi-page stability
 
 ## Distribution
 
@@ -204,5 +214,8 @@ friend round on real Baidu setup/inference.
 - [x] Exact RC.4 is re-downloaded and passes checksum, disk-image integrity, Developer ID, hardened-runtime, notarization/stapling, Gatekeeper, embedded version/build, and quarantined LaunchServices checks (2026-08-05)
 - [x] Exact signed RC.4 empty, loaded-document, Workspace, and Extract layouts are inspected in light appearance; the identical candidate code passes light, dark, wide, and compact inspection before tag (2026-08-05)
 - [ ] Exact RC.4 is installed into Applications and dogfooded in dark appearance
+- [ ] Public `desktop-v1.0.0-rc.5` prerelease publishes a signed/notarized DMG and SHA-256 asset
+- [ ] RC.5 appcast branch passes `macos-checks` and merges to protected `main`
+- [ ] Exact RC.5 is re-downloaded and passes checksum, disk-image, signature, notarization/stapling, Gatekeeper, embedded-version, and quarantined-launch checks
 - [ ] Friend-equivalent clean-Mac install and Apple Vision extraction recorded on issue #47
 - [ ] Signed in-place **Install and Relaunch** update evidence recorded on issue #39

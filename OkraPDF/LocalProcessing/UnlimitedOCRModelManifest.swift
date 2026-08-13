@@ -56,6 +56,9 @@ enum UnlimitedOCRModelManifest {
         quantization: LocalModelQuantization(bits: 4, scheme: "affine-int4-group-64"),
         parameterCount: nil,
         licenseSPDXIdentifier: "MIT",
+        licenseURL: URL(string: "https://github.com/baidu/baidu-idl/blob/master/LICENSE"),
+        licenseRevision: nil,
+        licenseNotice: nil,
         artifacts: artifacts
     )
 

@@ -10,31 +10,42 @@ struct AppStateLaunchTests {
 
         let coordinator = LocalProcessingCoordinator(
             runsRoot: workspace.runsRoot,
-            userDefaults: workspace.defaults
+            userDefaults: workspace.defaults,
+            hostProfile: supportedDotsHost
         )
         let state = AppState(localProcessing: coordinator)
 
         #expect(
             coordinator.descriptors.map(\.id)
-                == [.appleVision, .hybridAuto, .unlimitedOCR, .ollama]
+                == [.appleVision, .hybridAuto, .dotsOCR, .unlimitedOCR, .ollama]
         )
-        #expect(coordinator.selectedProviderID == .appleVision)
+        #expect(coordinator.selectedProviderID == .dotsOCR)
         #expect(state.selectedDocument == nil)
     }
 
-    @Test("Stored Docling selection falls back to Apple Vision")
+    @Test("Stored Docling selection falls back to Dots OCR")
     func storedDoclingSelectionFallsBack() throws {
         let workspace = try TestWorkspace(prefix: "okra-removed-docling-provider")
         workspace.defaults.set("docling", forKey: "localProcessing.selectedProvider")
 
         let coordinator = LocalProcessingCoordinator(
             runsRoot: workspace.runsRoot,
-            userDefaults: workspace.defaults
+            userDefaults: workspace.defaults,
+            hostProfile: supportedDotsHost
         )
 
-        #expect(coordinator.selectedProviderID == .appleVision)
-        #expect(coordinator.selectedDescriptor.id == .appleVision)
-        #expect(coordinator.selectedAvailability == .ready)
+        #expect(coordinator.selectedProviderID == .dotsOCR)
+        #expect(coordinator.selectedDescriptor.id == .dotsOCR)
+        #expect(coordinator.selectedAvailability == .setupRequired("Setup required · ~3.5 GB"))
+    }
+
+    private var supportedDotsHost: LocalParserHostProfile {
+        LocalParserHostProfile(
+            architecture: .appleSilicon,
+            macOSMajorVersion: 14,
+            unifiedMemoryGB: 16,
+            availableDiskBytes: 5_000_000_000
+        )
     }
 
     @Test("Corrupt run manifests are skipped during startup")

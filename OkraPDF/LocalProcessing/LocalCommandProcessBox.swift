@@ -3,29 +3,37 @@ import Foundation
 
 final class LocalCommandProcessBox: @unchecked Sendable {
     private let lock = NSLock()
-    private var process: Process?
+    private var processGroupID: pid_t?
     private var isCancelled = false
+    private var forceKillScheduled = false
 
-    func register(_ process: Process) {
+    func register(processGroupID: pid_t) {
         lock.lock()
-        self.process = process
+        self.processGroupID = processGroupID
         let shouldTerminate = isCancelled
         lock.unlock()
 
         if shouldTerminate {
-            requestTermination(of: process)
+            requestTermination(ofProcessGroup: processGroupID)
         }
     }
 
     func cancel() {
         lock.lock()
         isCancelled = true
-        let process = process
+        let processGroupID = processGroupID
         lock.unlock()
 
-        if let process {
-            requestTermination(of: process)
+        if let processGroupID {
+            requestTermination(ofProcessGroup: processGroupID)
         }
+    }
+
+    func processDidExit(processGroupID: pid_t) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard self.processGroupID == processGroupID, isCancelled == false else { return }
+        self.processGroupID = nil
     }
 
     var wasCancelled: Bool {
@@ -34,20 +42,29 @@ final class LocalCommandProcessBox: @unchecked Sendable {
         return isCancelled
     }
 
-    private func requestTermination(of process: Process) {
-        guard process.isRunning else { return }
-        process.terminate()
+    private func requestTermination(ofProcessGroup processGroupID: pid_t) {
+        Darwin.kill(-processGroupID, SIGTERM)
 
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 1) { [weak self] in
-            guard let self else { return }
+        lock.lock()
+        let shouldScheduleForceKill = forceKillScheduled == false
+        forceKillScheduled = true
+        lock.unlock()
+
+        guard shouldScheduleForceKill else { return }
+
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 1) { [self] in
             self.lock.lock()
             let shouldForceKill = self.isCancelled
-                && self.process === process
-                && process.isRunning
+                && self.processGroupID == processGroupID
             self.lock.unlock()
 
             if shouldForceKill {
-                Darwin.kill(process.processIdentifier, SIGKILL)
+                Darwin.kill(-processGroupID, SIGKILL)
+                self.lock.lock()
+                if self.processGroupID == processGroupID {
+                    self.processGroupID = nil
+                }
+                self.lock.unlock()
             }
         }
     }
